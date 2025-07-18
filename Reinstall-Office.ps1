@@ -1,6 +1,5 @@
-# Set working directory
+# Define working directory and paths
 $workingDir = "$env:TEMP\ODT"
-$odtUrl = "https://download.microsoft.com/download/2/F/9/2F9FC087-3194-4F29-92FE-7F5F0F6F9F0A/officedeploymenttool_16530-20154.exe"
 $setupPath = "$workingDir\setup.exe"
 $xmlPathUninstall = "$workingDir\uninstall.xml"
 $xmlPathInstall = "$workingDir\install.xml"
@@ -8,11 +7,14 @@ $xmlPathInstall = "$workingDir\install.xml"
 # Create working directory
 New-Item -ItemType Directory -Force -Path $workingDir | Out-Null
 
-# Download Office Deployment Tool
-Invoke-WebRequest -Uri $odtUrl -OutFile "$workingDir\odt.exe"
+# Download Office Deployment Tool setup.exe directly
+Invoke-WebRequest -Uri "https://officecdn.microsoft.com/pr/wsus/setup.exe" -OutFile $setupPath
 
-# Extract ODT
-Start-Process -FilePath "$workingDir\odt.exe" -ArgumentList "/quiet /extract:$workingDir" -Wait
+# Ensure setup.exe was downloaded
+if (-Not (Test-Path $setupPath)) {
+    Write-Output "ERROR: setup.exe not found at $setupPath"
+    Exit 1
+}
 
 # Create uninstall config XML
 @"
@@ -25,7 +27,7 @@ Start-Process -FilePath "$workingDir\odt.exe" -ArgumentList "/quiet /extract:$wo
 # Run Office uninstall
 Start-Process -FilePath $setupPath -ArgumentList "/configure $xmlPathUninstall" -Wait
 
-# OPTIONAL: Pause to allow cleanup before reinstall
+# Wait before reinstall
 Start-Sleep -Seconds 20
 
 # Create install config XML
@@ -44,5 +46,5 @@ Start-Sleep -Seconds 20
 # Run Office install
 Start-Process -FilePath $setupPath -ArgumentList "/configure $xmlPathInstall" -Wait
 
-# OPTIONAL: Cleanup temp files
-Remove-Item -Path $workingDir -Recurse -Force
+# Optional cleanup
+Remove-Item -Path $workingDir -Recurse -Force -ErrorAction SilentlyContinue
